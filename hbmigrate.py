@@ -19,7 +19,9 @@ Check requirements.txt for other dependencies.
 
 """
 
-from sqlalchemy import *
+from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy import create_engine
+from sqlalchemy.schema import ThreadLocalMetaData
 from elixir import *
 
 
@@ -34,5 +36,6 @@ old_metadata.bind = old_engine
 
 new_engine = create_engine("mysql://bfa:gtca@localhost:5432/newhandbook")
 new_session = scoped_session(sessionmaker(autoflush=True, transactional=True, bind=new_engine))
-new_metadata = metadata
+new_metadata = ThreadLocalMetaData()
 new_metadata.bind = new_engine
+
