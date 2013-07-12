@@ -22,4 +22,17 @@ Check requirements.txt for other dependencies.
 from sqlalchemy import *
 from elixir import *
 
-""" establish database connections
+
+""" establish multiple database connections (for old and new handbook db)
+(loosely) following recipe at: http://elixir.ematia.de/trac/wiki/Recipes/MultipleDatabases
+"""
+
+old_engine = create_engine("mysql://bfa:gtca@localhost:5432/oldhandbook")
+old_session = scoped_session(sessionmaker(autoflush=True, transactional=True, bind=old_engine))
+old_metadata = metadata
+old_metadata.bind = old_engine
+
+new_engine = create_engine("mysql://bfa:gtca@localhost:5432/newhandbook")
+new_session = scoped_session(sessionmaker(autoflush=True, transactional=True, bind=new_engine))
+new_metadata = metadata
+new_metadata.bind = new_engine
