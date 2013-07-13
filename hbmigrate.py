@@ -90,11 +90,11 @@ class UsersOld(Entity):
 # new
 class UsersNew(Entity):
 	""" newhandbook/bf_users """
-		using_options(metadata=old_metadata, session=old_session, tablename="bf_users", autoload=True)
+		using_options(metadata=new_metadata, session=new_session, tablename="bf_users", autoload=True)
 
 class UserMetaNew(Entity):
 	""" newhandbook/bf_user_meta """
-		using_options(metadata=old_metadata, session=old_session, tablename="bf_user_meta", autoload=True)
+		using_options(metadata=new_metadata, session=new_session, tablename="bf_user_meta", autoload=True)
 
 """ model contact data
 	old handbook:
