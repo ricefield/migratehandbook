@@ -30,12 +30,106 @@ from elixir import *
 """
 
 old_engine = create_engine("mysql://bfa:gtca@localhost:5432/oldhandbook")
-old_session = scoped_session(sessionmaker(autoflush=True, transactional=True, bind=old_engine))
+old_session = scoped_session(sessionmaker(autoflush=True, bind=old_engine))
 old_metadata = metadata
 old_metadata.bind = old_engine
 
 new_engine = create_engine("mysql://bfa:gtca@localhost:5432/newhandbook")
-new_session = scoped_session(sessionmaker(autoflush=True, transactional=True, bind=new_engine))
+new_session = scoped_session(sessionmaker(autoflush=True, bind=new_engine))
 new_metadata = ThreadLocalMetaData()
 new_metadata.bind = new_engine
+
+""" MODEL DATA:
+	before we can begin doing anything, we need to first model all the tables we'll be dealing with
+"""
+
+""" model team and city data
+	old handbook:
+		- cities
+	new handbook:
+		- bf_city
+		- bf_team
+		- bf_team_members
+"""
+
+# old
+class CitiesOld(Entity):
+	""" oldhandbook/cities """
+	using_options(metadata=old_metadata, session=old_session, tablename="cities", autoload=True)
+
+## TODO: teams, user association to teams
+
+# new
+class CityNew(Entity):
+	""" newhandbook/bf_city """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_city", autoload=True)
+
+class TeamNew(Entity):
+	""" newhandbook/bf_team """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_team", autoload=True)
+
+class TeamMembersNew(Entity):
+	""" newhandbook/bf_team_members """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_team_members", autoload=True)
+
+""" model user data
+	old handbook:
+		- users
+	new handbook:
+		- bf_users
+		- bf_user_meta (stores extra misc. data about users)
+"""
+
+# old
+class UsersOld(Entity):
+	""" oldhandbook/users """
+	using_options(metadata=old_metadata, session=old_session, tablename="users", autoload=True)
+
+## TODO: user permissions/roles
+
+# new
+class UsersNew(Entity):
+	""" newhandbook/bf_users """
+		using_options(metadata=old_metadata, session=old_session, tablename="bf_users", autoload=True)
+
+class UserMetaNew(Entity):
+	""" newhandbook/bf_user_meta """
+		using_options(metadata=old_metadata, session=old_session, tablename="bf_user_meta", autoload=True)
+
+""" model contact data
+	old handbook:
+		- contacts
+		- contacts_users
+		- bfa_recipients
+		- bfa_contacts
+		- bfa_contacts_users
+	new handbook:
+
+"""
+
+""" model contact comment data
+"""
+
+""" MIGRATION: 
+	after modeling all the necessary tables, we can begin migrating data
+"""
+
+# setup and create the tables so we can begin migrating data
+create_all()
+setup_all()
+
+
+""" migrate team and city data
+"""
+
+""" migrate user accounts
+"""
+
+""" migrate contacts
+"""
+
+""" migrate contact comments
+"""
+
+
 
