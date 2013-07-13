@@ -104,10 +104,16 @@ class UserMetaNew(Entity):
 		- bfa_contacts
 		- bfa_contacts_users
 	new handbook:
-
+		- bf_oms_contacts
+		- bf_contacts
+		- bf_contacts_members
 """
 
 """ model contact comment data
+	old handbook:
+		- comments
+	new handbook:
+		- bf_contacts_comments
 """
 
 """ MIGRATION: 
