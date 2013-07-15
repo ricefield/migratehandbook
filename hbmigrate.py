@@ -170,17 +170,31 @@ create_all()
 	- the rest is default or null-allowed values
 """
 
+city2city = {} # a mapping of old city ids to new city ids
+city2team = {} # a mapping of old city ids to new team ids
+
 for city in CitiesOld.query.all():
 	newcity = CityNew(city_name=city.name, city_state=city.state)
 	newcity.city_description = ""
 	new_session.add(newcity)
 	new_session.commit()
-	newteam = TeamNew(team_name=city.name+", "+city.state, team_assigned_city=newcity.id)
+	city2city[city.id] = newcity.city_id
+	newteam = TeamNew(team_name=city.name+", "+city.state, team_assigned_city=newcity.city_id)
 	new_session.add(newteam)
 	new_session.commit()
+	city2team[city.id] = newteam.team_id 
 
 """ migrate user accounts
+	- create new user accounts
+	- fill in basic info, rest is defaults or null-allowed values
+	- dump gender, age, cellphone, homephone, dob, locality, socialcast data, and bfa_access in bf_user_meta
+	- migrate permissions
+	- associate with teams
+	- 
 """
+
+for user in UsersOld.query.all():
+
 
 """ migrate contacts
 """
