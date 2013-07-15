@@ -86,15 +86,16 @@ class UsersOld(Entity):
 	using_options(metadata=old_metadata, session=old_session, tablename="users", autoload=True)
 
 ## TODO: user permissions/roles
+### RESOLVED: roles are in user table: admin_role, teamcoordinator_role, and teammember_role columns
 
 # new
 class UsersNew(Entity):
 	""" newhandbook/bf_users """
-		using_options(metadata=new_metadata, session=new_session, tablename="bf_users", autoload=True)
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_users", autoload=True)
 
 class UserMetaNew(Entity):
 	""" newhandbook/bf_user_meta """
-		using_options(metadata=new_metadata, session=new_session, tablename="bf_user_meta", autoload=True)
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_user_meta", autoload=True)
 
 """ model contact data
 	old handbook:
@@ -109,12 +110,49 @@ class UserMetaNew(Entity):
 		- bf_contacts_members
 """
 
+# old
+class ContactsOld(Entity):
+	""" oldhandbook/contacts """
+	using_options(metadata=old_metadata, session=old_session, tablename="contacts", autoload=True)
+
+class ContactsUsersOld(Entity):
+	""" newhandbook/contacts_users """
+	using_options(metadata=old_metadata, session=old_session, tablename="contacts_users", autoload=True)
+
+class BFARecipientsOld(Entity):
+	using_options(metadata=old_metadata, session=old_session, tablename="bfa_recipients", autoload=True)
+
+class BFAContactsOld(Entity):
+	using_options(metadata=old_metadata, session=old_session, tablename="bfa_contacts", autoload=True)
+
+class BFAContactsUsersOld(Entity):
+	using_options(metadata=old_metadata, session=old_session, tablename="bfa_contacts_users", autoload=True)
+
+# new
+class OMSContactsNew(Entity):
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_oms_contacts", autoload=True)
+
+class ContactsNew(Entity):
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts", autoload=True)
+
+class ContactsMembersNew(Entity):
+	using_options(metadata=new_metadata, session=new_session, tablename="bfa_contacts_users", autoload=True)
+
 """ model contact comment data
 	old handbook:
 		- comments
 	new handbook:
 		- bf_contacts_comments
 """
+# old
+class CommentsOld(Entity):
+	""" oldhandbook/comments """
+	using_options(metadata=old_metadata, session=old_session, tablename="comments", autoload=True)
+
+# new
+class ContactsCommentsNew(Entity):
+	""" newhandbook/bf_contacts_comments """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts_comments", autoload=True)
 
 """ MIGRATION: 
 	after modeling all the necessary tables, we can begin migrating data
