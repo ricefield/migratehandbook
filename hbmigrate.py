@@ -164,7 +164,20 @@ create_all()
 
 
 """ migrate team and city data
+	- create new cities and teams
+	- transfer city name and state
+	- establish foreign-key relationship between teams and cities
+	- the rest is default or null-allowed values
 """
+
+for city in CitiesOld.query.all():
+	newcity = CityNew(city_name=city.name, city_state=city.state)
+	newcity.city_description = ""
+	new_session.add(newcity)
+	new_session.commit()
+	newteam = TeamNew(team_name=city.name+", "+city.state, team_assigned_city=newcity.id)
+	new_session.add(newteam)
+	new_session.commit()
 
 """ migrate user accounts
 """
