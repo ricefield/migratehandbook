@@ -68,10 +68,6 @@ class TeamNew(Entity):
 	""" newhandbook/bf_team """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_team", autoload=True)
 
-class TeamMembersNew(Entity):
-	""" newhandbook/bf_team_members """
-	using_options(metadata=new_metadata, session=new_session, tablename="bf_team_members", autoload=True)
-
 """ model user data
 	old handbook:
 		- users
@@ -96,6 +92,10 @@ class UsersNew(Entity):
 class UserMetaNew(Entity):
 	""" newhandbook/bf_user_meta """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_user_meta", autoload=True)
+
+class TeamMembersNew(Entity):
+	""" newhandbook/bf_team_members """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_team_members", autoload=True)
 
 """ model contact data
 	old handbook:
@@ -159,8 +159,8 @@ class ContactsCommentsNew(Entity):
 """
 
 # setup and create the tables so we can begin migrating data
-create_all()
 setup_all()
+create_all()
 
 
 """ migrate team and city data
