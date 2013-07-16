@@ -192,10 +192,9 @@ for city in CitiesOld.query.all():
 """ migrate user accounts
 	- create new user accounts
 	- fill in basic info, rest is defaults or null-allowed values
-	- dump gender, age, cellphone, homephone, dob, locality, socialcast data, and bfa_access in bf_user_meta
 	- migrate permissions
+	- dump gender, age, cellphone, homephone, dob, locality, socialcast data, and bfa_access in bf_user_meta
 	- associate with teams
-	- 
 """
 
 user2user = {} # a mapping of old user ids to new user ids
@@ -236,8 +235,8 @@ for user in UsersOld.query.all():
 		"dob": user.dob,
 		"locality": user.locality,
 		"socialcast_url": user.socialcast_url,
-		"socialcast_group": user.socialcast_group,
-		"bfa_approved": 0 if user.bfa_access is not 1 else 0
+		"socialcast_group": 0 if user.socialcast_group is not 1 else 1
+		"bfa_approved": 0 if user.bfa_access is not 1 else 1
 	}
 	for key, value in meta.iteritems():
 		newusermeta = UserMetaNew(user_id=newuser.id,
