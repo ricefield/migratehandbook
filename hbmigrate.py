@@ -64,6 +64,14 @@ class CityNew(Entity):
 	""" newhandbook/bf_city """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_city", autoload=True)
 
+class ZipCodeNew(Entity):
+	""" newhandbook/bf_zipcode """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_zipcode", autoload=True)
+
+class CityZipCodesNew(Entity):
+	""" newhandbook/bf_city_zipcodes """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_city_zipcodes", autoload=True)
+
 class TeamNew(Entity):
 	""" newhandbook/bf_team """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_team", autoload=True)
@@ -181,6 +189,17 @@ for city in CitiesOld.query.all():
 	new_session.add(newcity)
 	new_session.commit()
 	city2city[city.id] = newcity.city_id
+
+	# find zipcodes and create zipcode relationships
+	for zipcode in ZipCodeNew.query.filter_by(city=newcity.city_name).all():
+		newzip = CityZipCodesNew(city_id=newcity.city_id,
+							 	 city_group_id=None,
+								 zipcode_id=zipcode.id,
+								 zipcode=zipcode.zip_code,
+								 type=1)
+		new_session.add(zipcode)
+		new_session.commit()
+
 
 	# create team
 	newteam = TeamNew(team_name=city.name+", "+city.state, 
