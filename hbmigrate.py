@@ -350,7 +350,33 @@ for row in BFAContactsUsersOld.query.all():
 		continue
 
 """ migrate contact comments
+	- migrate each comment
+	- find via id depending on whether bfa or nonbfa contact
 """
+
+for comment in CommentsOld.query.all():
+	if comment.commentable_type = "BfaContact":
+		if bfacontact2contact[comment.commentable_id] is not None:
+			newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
+													member_id=user2user[comment.user_id], # which is this?
+													contact_comment=comment.content,
+													date_added=comment.created_at)
+			new_session.add(newcontactcomment)
+			new_session.commit()
+		else:
+			continue
+	elif: comment.commentable_type = "Contact":
+		if contact2contact[comment.commentable_id] is not None:
+			newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
+													member_id=user2user[comment.user_id], # which is this?
+													contact_comment=comment.content,
+													date_added=comment.created_at)
+			new_session.add(newcontactcomment)
+			new_session.commit()
+	else:
+		continue
+
+
 
 
 
