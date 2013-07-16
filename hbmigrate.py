@@ -23,6 +23,7 @@ from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy.schema import ThreadLocalMetaData
 from elixir import *
+import datetime
 
 
 """ establish multiple database connections (for old and new handbook db)
@@ -56,8 +57,6 @@ new_metadata.bind = new_engine
 class CitiesOld(Entity):
 	""" oldhandbook/cities """
 	using_options(metadata=old_metadata, session=old_session, tablename="cities", autoload=True)
-
-## TODO: teams, user association to teams
 
 # new
 class CityNew(Entity):
@@ -124,27 +123,33 @@ class ContactsOld(Entity):
 	using_options(metadata=old_metadata, session=old_session, tablename="contacts", autoload=True)
 
 class ContactsUsersOld(Entity):
-	""" newhandbook/contacts_users """
+	""" oldhandbook/contacts_users """
 	using_options(metadata=old_metadata, session=old_session, tablename="contacts_users", autoload=True)
 
 class BFARecipientsOld(Entity):
+	""" oldhandbook/bfa_recipients """
 	using_options(metadata=old_metadata, session=old_session, tablename="bfa_recipients", autoload=True)
 
 class BFAContactsOld(Entity):
+	""" oldhandbook/bfa_contacts """
 	using_options(metadata=old_metadata, session=old_session, tablename="bfa_contacts", autoload=True)
 
 class BFAContactsUsersOld(Entity):
+	""" oldhandbook/bfa_contacts_users """
 	using_options(metadata=old_metadata, session=old_session, tablename="bfa_contacts_users", autoload=True)
 
 # new
 class OMSContactsNew(Entity):
+	""" newhandbook/bf_oms_contacts """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_oms_contacts", autoload=True)
 
 class ContactsNew(Entity):
+	""" newhandbook/bf_contacts """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts", autoload=True)
 
 class ContactsMembersNew(Entity):
-	using_options(metadata=new_metadata, session=new_session, tablename="bfa_contacts_users", autoload=True)
+	""" newhandbook/bf_contact_members """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_contact_members", autoload=True)
 
 """ model contact comment data
 	old handbook:
@@ -162,6 +167,10 @@ class ContactsCommentsNew(Entity):
 	""" newhandbook/bf_contacts_comments """
 	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts_comments", autoload=True)
 
+
+################################################################
+
+
 """ MIGRATION: 
 	after modeling all the necessary tables, we can begin migrating data
 """
@@ -173,7 +182,7 @@ create_all()
 
 """ migrate team and city data
 	- create new cities and teams
-	- transfer city name and state
+	- find zipcodes and establish zipcode relationships
 	- establish foreign-key relationship between teams and cities
 	- the rest is default or null-allowed values
 """
@@ -219,6 +228,7 @@ for city in CitiesOld.query.all():
 user2user = {} # a mapping of old user ids to new user ids
 
 for user in UsersOld.query.all():
+	# create new user
 	newuser = UsersNew(email=user.email,
 					   username=user.first_name.lower()+user.last_name.lower()
 					   created_on=user.created_at
@@ -276,7 +286,68 @@ for user in UsersOld.query.all():
 	new_session.commit()
 
 """ migrate contacts
+	- create new contacts from contacts and bfa contacts, up to a year old
+
 """
+
+contact2contact = {} # mapping of old (non-bfa) contacts to new contacts
+bfacontact2contact = {} # mapping of old bfa contacts to new contacts
+
+# old contacts -- only import those within the past year
+for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.today() - datetime.timedelta(365)):
+	# create new contact
+	newcontact = ContactsNew(team_id=city2team[contact.city_id],
+							 contacts_firstname=contact.first_name,
+							 contacts_lastname=contact.last_name,
+							 contacts_email=contact.email,
+							 contacts_phone=contact.phone,
+							 contacts_gender=contact.gender,
+							 contacts_address=contact.address,
+							 contacts_city=contact.addr_city,
+							 contacts_state=contact.state,
+							 contacts_zip=contact.zip,
+							 date_met=contact.datemet,
+							 customer_id="")
+	new_session.add(newcontact)
+	new_session.commit()
+
+	# build mapping
+	contact2contact[contact.id] = newcontact.contact_id
+
+# create contact to user relationships
+for row in ContactsUsersOld.query.all():
+	newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2user[row.user_id])
+
+# old bfa contacts -- only import those within the past year AND have a user assigned
+for row in BFAContactsUsersOld.query.all():
+	if BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one().date > (datetime.date.today() - datetime.timedelta(365)):
+		# create new contact
+		bfacontact = BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one()
+		newcontact = ContactsNew(team_id=city2team[user2user[row.user_id]],
+								 contacts_firstname=bfacontact.first_name,
+								 contacts_lastname=bfacontact.last_name,
+								 contacts_email=bfacontact.email,
+								 contacts_phone=bfacontact.phone,
+								 contacts_address=bfacontact.address,
+								 contacts_city=bfacontact.addr_city,
+								 contacts_state=bfacontact.state,
+								 contacts_zip=bfacontact.zip,
+								 biblestudy_interest=bfacontact.bfa_wantbiblestudy,
+								 contacts_books=bfacontact.bfa_orderitems,
+								 oms_date_ordered=datetime.datetime.date(bfacontact.bfa_dateordered),
+								 customer_id=bfacontact.bfa_customerid)
+		new_session.add(newcontact)
+		new_session.commit()
+
+		# build mapping
+		bfacontact2contact[bfacontact.id] = newcontact.contact_id
+
+		# build bfacontact to user relationship
+		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2user[row.user_id])
+		new_session.add(newcontactmember)
+		new_session.commit()
+	else:
+		continue
 
 """ migrate contact comments
 """
