@@ -19,6 +19,10 @@ Check requirements.txt for other dependencies.
 
 """
 
+## NOTE: in order for this script to work, you have to add primary key's to three tables:
+# oldhandbook/bfa_contacts_users, oldhandbook/contacts_users, and oldhandbook/comments
+
+
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy.schema import ThreadLocalMetaData
