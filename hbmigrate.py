@@ -267,7 +267,7 @@ for user in UsersOld.query.all():
 	# associate new users to teams
 	newteammember = TeamMembersNew(user_id=newuser.id, 
 				   				   team_id=city2team[user.city_id],
-								   role=0, # QUESTION!! 1 or 0 only?? what does these values represent
+								   role=1 if newuser.role_id is not 4 else 0,
 				   				   label="",
 				   				   active=1,
 				   				   active_team=1,
