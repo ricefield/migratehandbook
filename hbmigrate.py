@@ -174,12 +174,17 @@ city2city = {} # a mapping of old city ids to new city ids
 city2team = {} # a mapping of old city ids to new team ids
 
 for city in CitiesOld.query.all():
-	newcity = CityNew(city_name=city.name, city_state=city.state)
+	# create city
+	newcity = CityNew(city_name=city.name, 
+					  city_state=city.state)
 	newcity.city_description = ""
 	new_session.add(newcity)
 	new_session.commit()
 	city2city[city.id] = newcity.city_id
-	newteam = TeamNew(team_name=city.name+", "+city.state, team_assigned_city=newcity.city_id)
+
+	# create team
+	newteam = TeamNew(team_name=city.name+", "+city.state, 
+					  team_assigned_city=newcity.city_id)
 	new_session.add(newteam)
 	new_session.commit()
 	city2team[city.id] = newteam.team_id 
@@ -193,8 +198,64 @@ for city in CitiesOld.query.all():
 	- 
 """
 
-for user in UsersOld.query.all():
+user2user = {} # a mapping of old user ids to new user ids
 
+for user in UsersOld.query.all():
+	newuser = UsersNew(email=user.email,
+					   username=user.first_name.lower()+user.last_name.lower()
+					   created_on=user.created_at
+					   display_name=user.first_name+" "+user.last_name)
+	newuser.password_hash = "" # null, necessitates a reset
+	newuser.salt = "" # see above
+	# necessary bc new db doesn't allow NULL for this value
+	newuser.last_ip = user.last_sign_in_ip if user.last_sign_in_ip is not None else ""
+	newuser.active = 1 # user shouldn't have to activate
+	newuser.activate_hash = "" # shouldn't be necessary
+	
+	# user permissions
+	if user.teamcoordinator_role == 1:
+		newuser.role_id = 7
+	elif user.admin_role == 1:
+		newuser.role_id = 1
+	else:
+		newuser.role_id = 4
+
+	# commit so we can get newuser's id
+	new_session.add(newuser)
+	new_session.commit()
+
+	# build mapping
+	user2user[user.id] = newuser.id
+
+	# user meta
+	meta = {
+		"gender": user.gender,
+		"age": user.age,
+		"cellphone": user.cellphone,
+		"homephone": user.homephone,
+		"dob": user.dob,
+		"locality": user.locality,
+		"socialcast_url": user.socialcast_url,
+		"socialcast_group": user.socialcast_group,
+		"bfa_approved": 0 if user.bfa_access is not 1 else 0
+	}
+	for key, value in meta.iteritems():
+		newusermeta = UserMetaNew(user_id=newuser.id,
+								  meta_key=key,
+								  meta_value=str(value))
+		new_session.add(newusermeta)
+		new_session.commit()
+
+	# associate new users to teams
+	newteammember = TeamMembersNew(user_id=newuser.id, 
+				   				   team_id=city2team[user.city_id],
+								   role=0, # QUESTION!! 1 or 0 only?? what does these values represent
+				   				   label="",
+				   				   active=1,
+				   				   active_team=1,
+				   				   bfa_approved=0 if user.bfa_access is not 1 else 1)
+	new_session.add(newteammember)
+	new_session.commit()
 
 """ migrate contacts
 """
