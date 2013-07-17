@@ -324,7 +324,10 @@ for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.toda
 
 # create contact to user relationships
 for row in ContactsUsersOld.query.all():
-	newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2member[int(row.user_id)])  # which is this? 
+	try:
+		newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2member[row.user_id])  # which is this? 
+	except KeyError:  # if we didn't this user, just skip
+		continue
 
 # old bfa contacts -- only import those within the past year AND have a user assigned
 for row in BFAContactsUsersOld.query.all():
@@ -351,7 +354,7 @@ for row in BFAContactsUsersOld.query.all():
 		bfacontact2contact[bfacontact.id] = newcontact.contact_id
 
 		# build bfacontact to user relationship
-		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2member[int(row.user_id)])  # which is this? 
+		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2member[row.user_id])  # which is this? 
 		new_session.add(newcontactmember)
 		new_session.commit()
 	else:
@@ -366,7 +369,7 @@ for comment in CommentsOld.query.all():
 	if comment.commentable_type == "BfaContact":
 		if bfacontact2contact[comment.commentable_id] is not None:
 			newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
-													member_id=user2member[int(comment.user_id)],  # which is this?  
+													member_id=user2member[comment.user_id],  # which is this?  
 													contact_comment=comment.content,
 													date_added=comment.created_at)
 			new_session.add(newcontactcomment)
@@ -376,7 +379,7 @@ for comment in CommentsOld.query.all():
 	elif comment.commentable_type == "Contact":
 		if contact2contact[comment.commentable_id] is not None:
 			newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
-													member_id=user2member[int(comment.user_id)],  # which is this?
+													member_id=user2member[comment.user_id],  # which is this?
 													contact_comment=comment.content,
 													date_added=comment.created_at)
 			new_session.add(newcontactcomment)
