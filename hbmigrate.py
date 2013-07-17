@@ -280,7 +280,7 @@ for user in UsersOld.query.all():
 
 	# associate new users to teams
 	newteammember = TeamMembersNew(user_id=newuser.id, 
-				   				   team_id=city2team[user.city_id],
+				   				   team_id=city2team.get(user.city_id, 0),
 								   role=1 if newuser.role_id is not 4 else 0,
 				   				   label="",
 				   				   active=1,
