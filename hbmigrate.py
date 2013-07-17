@@ -268,7 +268,7 @@ for user in UsersOld.query.all():
 		"dob": user.dob,
 		"locality": user.locality,
 		"socialcast_url": user.socialcast_url,
-		"socialcast_group": 0 if user.socialcast_group is not 1 else 1
+		"socialcast_group": 0 if user.socialcast_group is not 1 else 1,
 		"bfa_approved": 0 if user.bfa_access is not 1 else 1
 	}
 	for key, value in meta.iteritems():
