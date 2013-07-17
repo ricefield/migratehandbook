@@ -20,7 +20,7 @@ Check requirements.txt for other dependencies.
 """
 
 ## NOTE: in order for this script to work, you have to add primary key's to three tables:
-# oldhandbook/bfa_contacts_users, oldhandbook/contacts_users, and oldhandbook/comments
+# oldhandbook/bfa_contacts_users, oldhandbook/contacts_users, and oldhandbook/bfa_recipients
 
 
 from sqlalchemy.orm import scoped_session, sessionmaker
@@ -234,8 +234,8 @@ user2user = {} # a mapping of old user ids to new user ids
 for user in UsersOld.query.all():
 	# create new user
 	newuser = UsersNew(email=user.email,
-					   username=user.first_name.lower()+user.last_name.lower()
-					   created_on=user.created_at
+					   username=user.first_name.lower()+user.last_name.lower(),
+					   created_on=user.created_at,
 					   display_name=user.first_name+" "+user.last_name)
 	newuser.password_hash = "" # null, necessitates a reset
 	newuser.salt = "" # see above
