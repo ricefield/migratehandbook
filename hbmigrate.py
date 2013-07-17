@@ -369,7 +369,7 @@ for comment in CommentsOld.query.all():
 			new_session.commit()
 		else:
 			continue
-	elif: comment.commentable_type == "Contact":
+	elif comment.commentable_type == "Contact":
 		if contact2contact[comment.commentable_id] is not None:
 			newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
 													member_id=user2user[comment.user_id],  # which is this?
