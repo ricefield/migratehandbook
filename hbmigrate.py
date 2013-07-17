@@ -324,7 +324,7 @@ for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.toda
 
 # create contact to user relationships
 for row in ContactsUsersOld.query.all():
-	newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2member[int(row.user_id])  # which is this? 
+	newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2member[int(row.user_id)])  # which is this? 
 
 # old bfa contacts -- only import those within the past year AND have a user assigned
 for row in BFAContactsUsersOld.query.all():
@@ -351,7 +351,7 @@ for row in BFAContactsUsersOld.query.all():
 		bfacontact2contact[bfacontact.id] = newcontact.contact_id
 
 		# build bfacontact to user relationship
-		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2member[int(row.user_id])  # which is this? 
+		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2member[int(row.user_id)])  # which is this? 
 		new_session.add(newcontactmember)
 		new_session.commit()
 	else:
