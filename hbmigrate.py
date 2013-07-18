@@ -22,12 +22,16 @@ Check requirements.txt for other dependencies.
 ## NOTE: in order for this script to work, you have to add primary key's to three tables:
 # oldhandbook/bfa_contacts_users, oldhandbook/contacts_users, and oldhandbook/bfa_recipients
 
+import datetime
+import logging
 
 from sqlalchemy.orm import scoped_session, sessionmaker
 from sqlalchemy import create_engine
 from sqlalchemy.schema import ThreadLocalMetaData
 from elixir import *
-import datetime
+
+# set up logging
+logging.basicConfig(filename="migrate.log", level=logging.DEBUG)
 
 
 """ establish multiple database connections (for old and new handbook db)
@@ -281,12 +285,18 @@ for user in UsersOld.query.all():
 
 	# associate new users to teams
 	newteammember = TeamMembersNew(user_id=newuser.id, 
-				   				   team_id=city2team.get(user.city_id, 0),
 								   role=1 if newuser.role_id is not 4 else 0,
 				   				   label="",
 				   				   active=1,
 				   				   active_team=1,
 				   				   bfa_approved=0 if user.bfa_access is not 1 else 1)
+
+	try:
+		newteammember.team_id=city2team[user.city_id]
+	except KeyError:
+		logging.error("user "+user.email+" does not have a city/team assigned, assigning 0 (no city) in new db")
+		newteammember.team_id=0
+
 	new_session.add(newteammember)
 	new_session.commit()
 
@@ -324,39 +334,49 @@ for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.toda
 
 # create contact to user relationships
 for row in ContactsUsersOld.query.all():
+	newcontactmember = ContactsMembersNew()
+	newcontactmember.member_id=user2member[row.user_id]
 	try:
-		newcontactmember = ContactsMembersNew(contact_id=contact2contact[row.contact_id], member_id=user2member[row.user_id])  # which is this? 
-	except KeyError:  # if we didn't this user, just skip
-		continue
+		newcontactmember.contact_id=contact2contact[row.contact_id]
+		# write to db
+		new_session.add(newcontactmember)
+		new_session.commit()
+	except KeyError:
+		logging.error("missing contact id#"+str(row.contact_id)+" (likely not imported). not creating contact2user relationship")
 
 # old bfa contacts -- only import those within the past year AND have a user assigned
 for row in BFAContactsUsersOld.query.all():
-	if BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one().date > (datetime.date.today() - datetime.timedelta(365)):
-		# create new contact
-		bfacontact = BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one()
-		newcontact = ContactsNew(team_id=city2team[user2user[row.user_id]],
-								 contacts_firstname=bfacontact.first_name,
-								 contacts_lastname=bfacontact.last_name,
-								 contacts_email=bfacontact.email,
-								 contacts_phone=bfacontact.phone,
-								 contacts_address=bfacontact.address,
-								 contacts_city=bfacontact.addr_city,
-								 contacts_state=bfacontact.state,
-								 contacts_zip=bfacontact.zip,
-								 biblestudy_interest=bfacontact.bfa_wantbiblestudy,
-								 contacts_books=bfacontact.bfa_orderitems,
-								 oms_date_ordered=datetime.datetime.date(bfacontact.bfa_dateordered),
-								 customer_id=bfacontact.bfa_customerid)
-		new_session.add(newcontact)
-		new_session.commit()
+	try:
+		if BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one().date > (datetime.date.today() - datetime.timedelta(365)):
+			# create new contact
+			bfacontact = BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one()
+			newcontact = ContactsNew(team_id=city2team[user2user[row.user_id]],
+									 contacts_firstname=bfacontact.first_name,
+									 contacts_lastname=bfacontact.last_name,
+									 contacts_email=bfacontact.email,
+									 contacts_phone=bfacontact.phone,
+									 contacts_address=bfacontact.address,
+									 contacts_city=bfacontact.addr_city,
+									 contacts_state=bfacontact.state,
+									 contacts_zip=bfacontact.zip,
+									 biblestudy_interest=bfacontact.bfa_wantbiblestudy,
+									 contacts_books=bfacontact.bfa_orderitems,
+									 oms_date_ordered=datetime.datetime.date(bfacontact.bfa_dateordered),
+									 customer_id=bfacontact.bfa_customerid)
+			new_session.add(newcontact)
+			new_session.commit()
 
-		# build mapping
-		bfacontact2contact[bfacontact.id] = newcontact.contact_id
+			# build mapping
+			bfacontact2contact[bfacontact.id] = newcontact.contact_id
 
-		# build bfacontact to user relationship
-		newcontactmember = ContactsMembersNew(contact_id=newcontact.contact_id, member_id=user2member[row.user_id])  # which is this? 
-		new_session.add(newcontactmember)
-		new_session.commit()
+			# build bfacontact to user relationship
+			newcontactmember = ContactsMembersNew()
+			newcontactmember.contact_id=newcontact.contact_id
+			newcontactmember.member_id=user2member[row.user_id]
+			new_session.add(newcontactmember)
+			new_session.commit()
+	except KeyError:
+		logging.error("missing BfA contact: id#"+row.bfa_contact_id)
 	else:
 		continue
 
@@ -369,7 +389,7 @@ for comment in CommentsOld.query.all():
 	if comment.commentable_type == "BfaContact":
 		if bfacontact2contact[comment.commentable_id] is not None:
 			newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
-													member_id=user2member[comment.user_id],  # which is this?  
+													member_id=user2member[comment.user_id], 
 													contact_comment=comment.content,
 													date_added=comment.created_at)
 			new_session.add(newcontactcomment)
@@ -379,7 +399,7 @@ for comment in CommentsOld.query.all():
 	elif comment.commentable_type == "Contact":
 		if contact2contact[comment.commentable_id] is not None:
 			newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
-													member_id=user2member[comment.user_id],  # which is this?
+													member_id=user2member[comment.user_id],
 													contact_comment=comment.content,
 													date_added=comment.created_at)
 			new_session.add(newcontactcomment)
