@@ -25,13 +25,15 @@ Check requirements.txt for other dependencies.
 import datetime
 import logging
 
-from sqlalchemy.orm import scoped_session, sessionmaker
+from sqlalchemy.orm import scoped_session, sessionmaker, exc
 from sqlalchemy import create_engine
 from sqlalchemy.schema import ThreadLocalMetaData
 from elixir import *
 
 # set up logging
 logging.basicConfig(filename="migrate.log", level=logging.DEBUG)
+logging.info("\n")
+logging.info("starting new import: "+str(datetime.datetime.now()))
 
 
 """ establish multiple database connections (for old and new handbook db)
@@ -195,6 +197,8 @@ create_all()
 	- the rest is default or null-allowed values
 """
 
+logging.info("### migrating cities and teams ###")
+
 city2city = {} # a mapping of old city ids to new city ids
 city2team = {} # a mapping of old city ids to new team ids
 
@@ -232,6 +236,8 @@ for city in CitiesOld.query.all():
 	- dump gender, age, cellphone, homephone, dob, locality, socialcast data, and bfa_access in bf_user_meta
 	- associate with teams
 """
+
+logging.info("### migrating user accounts ###")
 
 user2user = {} # a mapping of old user ids to new user ids
 user2member = {} # a mapping of old user ids to new teammember ids
@@ -305,8 +311,9 @@ for user in UsersOld.query.all():
 
 """ migrate contacts
 	- create new contacts from contacts and bfa contacts, up to a year old
-
 """
+
+logging.info("### migrating contacts ###")
 
 contact2contact = {} # mapping of old (non-bfa) contacts to new contacts
 bfacontact2contact = {} # mapping of old bfa contacts to new contacts
@@ -335,14 +342,21 @@ for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.toda
 # create contact to user relationships
 for row in ContactsUsersOld.query.all():
 	newcontactmember = ContactsMembersNew()
-	newcontactmember.member_id=user2member[row.user_id]
 	try:
 		newcontactmember.contact_id=contact2contact[row.contact_id]
-		# write to db
-		new_session.add(newcontactmember)
-		new_session.commit()
 	except KeyError:
 		logging.error("missing contact id#"+str(row.contact_id)+" (likely not imported). not creating contact2user relationship")
+		continue
+	try:
+		newcontactmember.member_id=user2member[row.user_id]
+	except KeyError:
+		logging.error("user id#"+str(row.user_id)+" no longer exists. not importing relationship")
+		continue
+
+	# write to db
+	new_session.rollback()
+	new_session.add(newcontactmember)
+	new_session.commit()
 
 # old bfa contacts -- only import those within the past year AND have a user assigned
 for row in BFAContactsUsersOld.query.all():
@@ -350,7 +364,7 @@ for row in BFAContactsUsersOld.query.all():
 		if BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one().date > (datetime.date.today() - datetime.timedelta(365)):
 			# create new contact
 			bfacontact = BFAContactsOld.query.filter_by(id=row.bfa_contact_id).one()
-			newcontact = ContactsNew(team_id=city2team[user2user[row.user_id]],
+			newcontact = ContactsNew(team_id=TeamMembersNew.query.filter_by(user_id=user2user[row.user_id]).one().team_id,
 									 contacts_firstname=bfacontact.first_name,
 									 contacts_lastname=bfacontact.last_name,
 									 contacts_email=bfacontact.email,
@@ -375,39 +389,42 @@ for row in BFAContactsUsersOld.query.all():
 			newcontactmember.member_id=user2member[row.user_id]
 			new_session.add(newcontactmember)
 			new_session.commit()
-	except KeyError:
-		logging.error("missing BfA contact: id#"+row.bfa_contact_id)
-	else:
-		continue
+	except exc.NoResultFound:
+		logging.error("missing BfA contact: id#"+str(row.bfa_contact_id))
 
 """ migrate contact comments
 	- migrate each comment
 	- find via id depending on whether bfa or nonbfa contact
 """
 
+logging.info("### migrating contact comments ###")
+
 for comment in CommentsOld.query.all():
 	if comment.commentable_type == "BfaContact":
-		if bfacontact2contact[comment.commentable_id] is not None:
-			newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
-													member_id=user2member[comment.user_id], 
-													contact_comment=comment.content,
-													date_added=comment.created_at)
-			new_session.add(newcontactcomment)
-			new_session.commit()
+		try:
+			if bfacontact2contact[comment.commentable_id] is not None:
+				newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
+														member_id=user2member[comment.user_id], 
+														contact_comment=comment.content,
+														date_added=comment.created_at)
+				new_session.add(newcontactcomment)
+				new_session.commit()
+		except KeyError:
+			logging.error("no BfAcontact with id#"+str(comment.commentable_id)+" (likely not imported). not migrating comment")
 		else:
 			continue
 	elif comment.commentable_type == "Contact":
-		if contact2contact[comment.commentable_id] is not None:
-			newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
-													member_id=user2member[comment.user_id],
-													contact_comment=comment.content,
-													date_added=comment.created_at)
-			new_session.add(newcontactcomment)
-			new_session.commit()
+		try:
+			if contact2contact[comment.commentable_id] is not None:
+				newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
+														member_id=user2member[comment.user_id],
+														contact_comment=comment.content,
+														date_added=comment.created_at)
+				new_session.add(newcontactcomment)
+				new_session.commit()
+		except KeyError:
+			logging.error("no contact with id#"+str(comment.commentable_id)+" (likely not imported). not migrating comment")
 	else:
 		continue
 
-
-
-
-
+logging.info("### migrating complete! ###")
