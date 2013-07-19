@@ -203,31 +203,39 @@ city2city = {} # a mapping of old city ids to new city ids
 city2team = {} # a mapping of old city ids to new team ids
 
 for city in CitiesOld.query.all():
-	# create city
-	newcity = CityNew(city_name=city.name, 
-					  city_state=city.state)
-	newcity.city_description = ""
-	new_session.add(newcity)
-	new_session.commit()
-	city2city[city.id] = newcity.city_id
-
-	# find zipcodes and create zipcode relationships
-	for zipcode in ZipCodeNew.query.filter_by(city=newcity.city_name).all():
-		newzip = CityZipCodesNew(city_id=newcity.city_id,
-							 	 city_group_id=None,
-								 zipcode_id=zipcode.id,
-								 zipcode=zipcode.zip_code,
-								 type=1)
-		new_session.add(zipcode)
+	if city.migrate == 'm': # merge
+		# don't create new city, just create mappings
+		newcity = CityNew.query.filter_by(city_name=city.name).filter_by(city_state=city.state).one()
+		newteam = TeamNew.query.filter_by(team_assigned_city=newcity.city_id)
+		city2city[city.id] = newcity.city_id
+		city2team[city.id] = newteam.team_id 
+	elif city.migrate == 'y': # migrate
+		# create city
+		newcity = CityNew(city_name=city.name, 
+						  city_state=city.state)
+		newcity.city_description = ""
+		new_session.add(newcity)
 		new_session.commit()
+		city2city[city.id] = newcity.city_id
+
+		# find zipcodes and create zipcode relationships
+		for zipcode in ZipCodeNew.query.filter_by(city=newcity.city_name).all():
+			newzip = CityZipCodesNew(city_id=newcity.city_id,
+								 	 city_group_id=None,
+									 zipcode_id=zipcode.id,
+									 zipcode=zipcode.zip_code,
+									 type=1)
+			new_session.add(zipcode)
+			new_session.commit()
 
 
-	# create team
-	newteam = TeamNew(team_name=city.name+", "+city.state, 
-					  team_assigned_city=newcity.city_id)
-	new_session.add(newteam)
-	new_session.commit()
-	city2team[city.id] = newteam.team_id 
+		# create team
+		newteam = TeamNew(team_name=city.name+", "+city.state, 
+						  team_assigned_city=newcity.city_id)
+		new_session.add(newteam)
+		new_session.commit()
+		city2team[city.id] = newteam.team_id
+
 
 """ migrate user accounts
 	- create new user accounts
@@ -320,24 +328,24 @@ bfacontact2contact = {} # mapping of old bfa contacts to new contacts
 
 # old contacts -- only import those within the past year
 for contact in ContactsOld.query.filter(ContactsOld.datemet > datetime.date.today() - datetime.timedelta(365)):
-	# create new contact
-	newcontact = ContactsNew(team_id=city2team[contact.city_id],
-							 contacts_firstname=contact.first_name,
-							 contacts_lastname=contact.last_name,
-							 contacts_email=contact.email,
-							 contacts_phone=contact.phone,
-							 contacts_gender=contact.gender,
-							 contacts_address=contact.address,
-							 contacts_city=contact.addr_city,
-							 contacts_state=contact.state,
-							 contacts_zip=contact.zip,
-							 date_met=contact.datemet,
-							 customer_id="")
-	new_session.add(newcontact)
-	new_session.commit()
+		# create new contact
+		newcontact = ContactsNew(team_id=city2team[contact.city_id],
+								 contacts_firstname=contact.first_name,
+								 contacts_lastname=contact.last_name,
+								 contacts_email=contact.email,
+								 contacts_phone=contact.phone,
+								 contacts_gender=contact.gender,
+								 contacts_address=contact.address,
+								 contacts_city=contact.addr_city,
+								 contacts_state=contact.state,
+								 contacts_zip=contact.zip,
+								 date_met=contact.datemet,
+								 customer_id="")
+		new_session.add(newcontact)
+		new_session.commit()
 
-	# build mapping
-	contact2contact[contact.id] = newcontact.contact_id
+		# build mapping
+		contact2contact[contact.id] = newcontact.contact_id
 
 # create contact to user relationships
 for row in ContactsUsersOld.query.all():
