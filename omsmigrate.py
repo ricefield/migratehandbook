@@ -24,14 +24,14 @@ from elixir import *
 # set up logging
 logging.basicConfig(filename="omsmigrate.log", level=logging.DEBUG)
 logging.info("\n")
-logging.info("** starting new migration: "+str(datetime.datetime.now())+" **")
+logging.info("** starting new OMS migration: "+str(datetime.datetime.now())+" **")
 
 
 """ establish multiple database connections (for old and new handbook db)
 (loosely) following recipe at: http://elixir.ematia.de/trac/wiki/Recipes/MultipleDatabases
 """
 
-old_engine = create_engine("mysql://bfa:omsoms@localhost:3306/oldhandbook")
+old_engine = create_engine("mysql://bfa:omsoms@localhost:3306/dbo")
 old_session = scoped_session(sessionmaker(autoflush=True, bind=old_engine))
 old_metadata = metadata
 old_metadata.bind = old_engine
@@ -40,3 +40,61 @@ new_engine = create_engine("mysql://bfa:omsoms@localhost:3306/newhandbook")
 new_session = scoped_session(sessionmaker(autoflush=True, bind=new_engine))
 new_metadata = ThreadLocalMetaData()
 new_metadata.bind = new_engine
+
+""" MODEL DATA:
+	before we can begin doing anything, we need to first model all the tables we'll be dealing with
+"""
+
+# old
+class Distributorship(Entity):
+	""" dbo/distributorship """
+	using_options(metadata=old_metadata, session=old_session, tablename="distributorship", autoload=True)
+
+class DistributorshipUserInRole(Entity):
+	""" dbo/distributorshipuserinrole """
+	using_options(metadata=old_metadata, session=old_session, tablename="distributorshipuserinrole", autoload=True)
+
+class DistributorshipZipCode(Entity):
+	""" dbo/distributorzipcode """
+	using_options(metadata=old_metadata, session=old_session, tablename="distributorshipzipcode", autoload=True)
+
+# new
+class City(Entity):
+	""" newhandbook/bf_city """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_city", autoload=True)
+
+class ZipCode(Entity):
+	""" newhandbook/bf_zipcode """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_zipcode", autoload=True)
+
+class CityZipCodes(Entity):
+	""" newhandbook/bf_city_zipcodes """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_city_zipcodes", autoload=True)
+
+class Team(Entity):
+	""" newhandbook/bf_team """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_team", autoload=True)
+
+class Users(Entity):
+	""" newhandbook/bf_users """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_users", autoload=True)
+
+class UserMeta(Entity):
+	""" newhandbook/bf_user_meta """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_user_meta", autoload=True)
+
+class TeamMembers(Entity):
+	""" newhandbook/bf_team_members """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_team_members", autoload=True)
+
+# setup and create the tables so we can begin migrating data
+setup_all()
+create_all()
+
+logging.info("### successfully generated Python models ###")
+
+
+""" MIGRATION """
+
+logging.info("### beginning migration of data ###")
+
