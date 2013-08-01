@@ -39,7 +39,87 @@ class CitiesOld(Entity):
 	""" oldhandbook/cities """
 	using_options(metadata=old_metadata, session=old_session, tablename="cities", autoload=True)
 
+class ContactsOld(Entity):
+	""" oldhandbook/contacts """
+	using_options(metadata=old_metadata, session=old_session, tablename="contacts", autoload=True)
+
+class CommentsOld(Entity):
+	""" oldhandbook/comments """
+	using_options(metadata=old_metadata, session=old_session, tablename="comments", autoload=True)
+
+# new
+class ContactsNew(Entity):
+	""" newhandbook/bf_contacts """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts", autoload=True)
+
+class ContactsCommentsNew(Entity):
+	""" newhandbook/bf_contacts_comments """
+	using_options(metadata=new_metadata, session=new_session, tablename="bf_contacts_comments", autoload=True)
+
 
 """ migration """
 
-for city in cities:
+for city, team in cities.iteritems:
+
+	logging.info("### migrating city id #" + city + "###")
+
+	logging.info("### migrating contact comments ###")
+
+	contact2contact = {} # mapping of old (non-bfa) contacts to new contacts
+	bfacontact2contact = {} # mapping of old bfa contacts to new contacts
+
+	# old contacts -- only import those within the past year
+	for contact in ContactsOld.query.filter_by(city_id=city):
+			# create new contact
+			newcontact = ContactsNew(team_id=team,
+									 contacts_firstname=contact.first_name,
+									 contacts_lastname=contact.last_name,
+									 contacts_email=contact.email,
+									 contacts_phone=contact.phone,
+									 contacts_gender=contact.gender,
+									 contacts_address=contact.address,
+									 contacts_city=contact.addr_city,
+									 contacts_state=contact.state,
+									 contacts_zip=contact.zip,
+									 date_met=contact.datemet,
+									 customer_id="")
+			new_session.add(newcontact)
+			new_session.commit()
+
+			# build mapping
+			contact2contact[contact.id] = newcontact.contact_id
+
+	""" migrate contact comments
+		- migrate each comment
+		- find via id depending on whether bfa or nonbfa contact
+	"""
+
+	logging.info("### migrating contact comments ###")
+
+	for comment in CommentsOld.query.all():
+		if comment.commentable_type == "BfaContact":
+			try:
+				if bfacontact2contact[comment.commentable_id] is not None:
+					newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
+															member_id=user2member[comment.user_id], 
+															contact_comment=comment.content,
+															date_added=comment.created_at)
+					new_session.add(newcontactcomment)
+					new_session.commit()
+			except KeyError:
+				logging.error("no BfAcontact with id#"+str(comment.commentable_id)+" (likely not imported). not migrating comment")
+			else:
+				continue
+		elif comment.commentable_type == "Contact":
+			try:
+				if contact2contact[comment.commentable_id] is not None:
+					newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
+															member_id=user2member[comment.user_id],
+															contact_comment=comment.content,
+															date_added=comment.created_at)
+					new_session.add(newcontactcomment)
+					new_session.commit()
+			except KeyError:
+				logging.error("no contact with id#"+str(comment.commentable_id)+" (likely not imported). not migrating comment")
+		else:
+			continue
