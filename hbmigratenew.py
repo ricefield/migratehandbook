@@ -63,7 +63,7 @@ for city, team in cities.iteritems:
 
 	logging.info("### migrating city id #" + city + "###")
 
-	logging.info("### migrating contact comments ###")
+	logging.info("### migrating contacts ###")
 
 	contact2contact = {} # mapping of old (non-bfa) contacts to new contacts
 	bfacontact2contact = {} # mapping of old bfa contacts to new contacts
@@ -89,28 +89,12 @@ for city, team in cities.iteritems:
 			# build mapping
 			contact2contact[contact.id] = newcontact.contact_id
 
-	""" migrate contact comments
-		- migrate each comment
-		- find via id depending on whether bfa or nonbfa contact
-	"""
+	""" migrate contact comments """
 
 	logging.info("### migrating contact comments ###")
 
 	for comment in CommentsOld.query.all():
-		if comment.commentable_type == "BfaContact":
-			try:
-				if bfacontact2contact[comment.commentable_id] is not None:
-					newcontactcomment = ContactsCommentsNew(contact_id=bfacontact2contact[comment.commentable_id],
-															member_id=user2member[comment.user_id], 
-															contact_comment=comment.content,
-															date_added=comment.created_at)
-					new_session.add(newcontactcomment)
-					new_session.commit()
-			except KeyError:
-				logging.error("no BfAcontact with id#"+str(comment.commentable_id)+" (likely not imported). not migrating comment")
-			else:
-				continue
-		elif comment.commentable_type == "Contact":
+		if comment.commentable_type == "Contact":
 			try:
 				if contact2contact[comment.commentable_id] is not None:
 					newcontactcomment = ContactsCommentsNew(contact_id=contact2contact[comment.commentable_id],
